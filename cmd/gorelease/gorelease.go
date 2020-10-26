@@ -151,6 +151,9 @@ func main() {
 	}
 }
 
+// Customization to skip go sum check.
+var skipGoSum bool
+
 // runRelease is the main function of gorelease. It's called by tests, so
 // it writes to w instead of os.Stdout and returns an error instead of
 // exiting.
@@ -163,6 +166,7 @@ func runRelease(w io.Writer, dir string, args []string) (success bool, err error
 	var baseVersion, releaseVersion string
 	fs.StringVar(&baseVersion, "base", "", "previous version to compare against")
 	fs.StringVar(&releaseVersion, "version", "", "proposed version to be released")
+	fs.BoolVar(&skipGoSum, "skip-gosum", false, "")
 	if err := fs.Parse(args); err != nil {
 		return false, &usageError{err: err}
 	}
@@ -1036,12 +1040,14 @@ func loadPackages(modPath, modRoot, loadDir string, goModData, goSumData []byte)
 		return pkgs, diagnostics, nil
 	}
 
-	newGoSumData, err := ioutil.ReadFile(filepath.Join(loadDir, "go.sum"))
-	if err != nil && !os.IsNotExist(err) {
-		return nil, nil, err
-	}
-	if !bytes.Equal(goSumData, newGoSumData) {
-		diagnostics = append(diagnostics, "go.sum: one or more sums are missing.\nRun 'go mod tidy' to add missing sums.")
+	if skipGoSum {
+		newGoSumData, err := ioutil.ReadFile(filepath.Join(loadDir, "go.sum"))
+		if err != nil && !os.IsNotExist(err) {
+			return nil, nil, err
+		}
+		if !bytes.Equal(goSumData, newGoSumData) {
+			diagnostics = append(diagnostics, "go.sum: one or more sums are missing.\nRun 'go mod tidy' to add missing sums.")
+		}
 	}
 
 	return pkgs, diagnostics, nil
