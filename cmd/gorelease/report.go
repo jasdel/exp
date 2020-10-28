@@ -216,7 +216,7 @@ func (r *report) suggestVersion() {
 		}
 	}
 
-	if r.haveIncompatibleChanges && r.base.version != "none" && pre == "" && major != "0" {
+	if r.haveIncompatibleChanges && (failPreview || (r.base.version != "none" && pre == "" && major != "0")) {
 		setNotValid("Incompatible changes were detected.")
 		return
 		// TODO(jayconrod): briefly explain how to prepare major version releases
@@ -294,7 +294,10 @@ func (r *report) requirementsChanged() bool {
 // isSuccessful returns true the module appears to be safe to release at the
 // proposed or suggested version.
 func (r *report) isSuccessful() bool {
-	return len(r.release.diagnostics) == 0 && r.versionInvalid == nil
+	// [jasdel] Was not considering incompatible changes.
+	return r.haveIncompatibleChanges &&
+		len(r.release.diagnostics) == 0 &&
+		r.versionInvalid == nil
 }
 
 type versionMessage struct {

@@ -153,6 +153,8 @@ func main() {
 
 // Customization to skip go sum check.
 var skipGoSum bool
+var failPreview bool
+var checkInternal bool
 
 // runRelease is the main function of gorelease. It's called by tests, so
 // it writes to w instead of os.Stdout and returns an error instead of
@@ -166,7 +168,9 @@ func runRelease(w io.Writer, dir string, args []string) (success bool, err error
 	var baseVersion, releaseVersion string
 	fs.StringVar(&baseVersion, "base", "", "previous version to compare against")
 	fs.StringVar(&releaseVersion, "version", "", "proposed version to be released")
-	fs.BoolVar(&skipGoSum, "skip-gosum", false, "")
+	fs.BoolVar(&skipGoSum, "skip-gosum", false, "skips diff checks against the go.sum files")
+	fs.BoolVar(&failPreview, "fail-preview", false, "returns failure for incompatible changes of preview versions")
+	fs.BoolVar(&checkInternal, "check-internal", false, "checks internal packages for incompatible changes")
 	if err := fs.Parse(args); err != nil {
 		return false, &usageError{err: err}
 	}
@@ -490,6 +494,12 @@ func makeReleaseReport(base, release moduleInfo) (report, error) {
 	// just check the new packages for errors.
 	shouldCompare := base.version != "none"
 	isInternal := func(pkgPath string) bool {
+		if checkInternal {
+			// If internal checks are internal check for internal package
+			// incompatible changes.
+			return false
+		}
+
 		if !hasPathPrefix(pkgPath, modPath) {
 			panic(fmt.Sprintf("package %s not in module %s", pkgPath, modPath))
 		}
@@ -1041,6 +1051,7 @@ func loadPackages(modPath, modRoot, loadDir string, goModData, goSumData []byte)
 	}
 
 	if skipGoSum {
+		// [jasdel] skip go sum file checks.
 		newGoSumData, err := ioutil.ReadFile(filepath.Join(loadDir, "go.sum"))
 		if err != nil && !os.IsNotExist(err) {
 			return nil, nil, err
